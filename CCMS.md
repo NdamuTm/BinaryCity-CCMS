@@ -68,3 +68,22 @@ It tracks :
 ### Relationship
 
 this is a many to many 
+----
+
+# Project structure
+
+
+```
+/models
+  Client.php
+  Contact.php
+  ClientContact.php
+
+/controllers
+  ClientController.php
+  ContactController.php
+
+/views
+  /clients
+  /contacts
+```
