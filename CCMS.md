@@ -74,16 +74,26 @@ this is a many to many
 
 
 ```
-/models
-  Client.php
-  Contact.php
-  ClientContact.php
-
-/controllers
-  ClientController.php
-  ContactController.php
-
-/views
-  /clients
-  /contacts
+client-contact-system/
+│
+├── models/
+│   ├── Client.php
+│   ├── Contact.php
+│   └── ClientContact.php
+│
+├── controllers/
+│   ├── ClientController.php
+│   └── ContactController.php
+│
+├── views/
+│   ├── clients/
+│   └── contacts/
+│
+├── config/
+│   └── database.php
+│
+├── public/
+│   └── index.php
+│
+└── README.md
 ```
