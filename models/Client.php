@@ -63,41 +63,132 @@ class Client {
 
     // Generate a unique client code using initials + number
     // Example: "ABC001", "ABC002", etc.
-    private function generateClientCode($name) {
-        // Split name into words and get first letter of each
-        $words = explode(" ", strtoupper($name));
-        $letters = "";
+    // private function generateClientCode($name) {
+    //     // Split name into words and get first letter of each
+    //     $words = explode(" ", strtoupper($name));
+    //     $letters = "";
 
-        foreach ($words as $word) {
-            if (!empty($word)) {
-                $letters .= $word[0];  // Take first character
+    //     foreach ($words as $word) {
+    //         if (!empty($word)) {
+    //             $letters .= $word[0];  // Take first character
+    //         }
+    //     }
+
+    //     // Use only first 3 letters
+    //     $letters = substr($letters, 0, 3);
+
+    //     // If we don't have 3 letters, pad with random letters
+    //     // This happens with single-word short names
+    //     while (strlen($letters) < 3) {
+    //         $letters .= chr(rand(65, 90)); // Random A-Z
+    //     }
+
+    //     $num = 1;
+
+    //     // Keep incrementing until we find an unused code
+    //     while (true) {
+    //         $code = $letters . str_pad($num, 3, "0", STR_PAD_LEFT);
+
+    //         // Check if this code already exists
+    //         $check = $this->conn->query("SELECT id FROM clients WHERE client_code = '$code'");
+    //         if ($check->num_rows == 0) {
+    //             return $code;  // Found unused code
+    //         }
+
+    //         $num++;  // Try next number
+    //     }
+    // }
+
+    public function generateClientCode(string $name): string
+{
+    $alpha = $this->generateAlphaPrefix($name);
+    $num = 1;
+
+    while (true) {
+        // Try numbers 001 -> 999 for this alpha
+        while ($num <= 999) {
+            $code = $alpha . str_pad((string)$num, 3, '0', STR_PAD_LEFT);
+
+            if (!$this->clientCodeExists($code)) {
+                return $code;
             }
+
+            $num++;
         }
 
-        // Use only first 3 letters
-        $letters = substr($letters, 0, 3);
-
-        // If we don't have 3 letters, pad with random letters
-        // This happens with single-word short names
-        while (strlen($letters) < 3) {
-            $letters .= chr(rand(65, 90)); // Random A-Z
-        }
-
+        // If we got here, alpha***999 is full -> increment alpha and restart numbers
+        $alpha = $this->incrementAlpha($alpha);
         $num = 1;
-
-        // Keep incrementing until we find an unused code
-        while (true) {
-            $code = $letters . str_pad($num, 3, "0", STR_PAD_LEFT);
-
-            // Check if this code already exists
-            $check = $this->conn->query("SELECT id FROM clients WHERE client_code = '$code'");
-            if ($check->num_rows == 0) {
-                return $code;  // Found unused code
-            }
-
-            $num++;  // Try next number
-        }
     }
+}
+
+/**
+ * Generates the 3-letter alpha part based on your rules:
+ * - 1 word: XAA
+ * - 2 words: XY A
+ * - 3+ words: XYZ
+ */
+private function generateAlphaPrefix(string $name): string
+{
+    $name = strtoupper(trim($name));
+
+    // Split by spaces, remove empties
+    $words = array_values(array_filter(preg_split('/\s+/', $name)));
+
+    // Keep only A-Z letters when extracting initials
+    $getFirstLetter = function ($word) {
+        $word = preg_replace('/[^A-Z]/', '', $word);
+        return $word !== '' ? $word[0] : 'A';
+    };
+
+    if (count($words) >= 3) {
+        $a = $getFirstLetter($words[0]);
+        $b = $getFirstLetter($words[1]);
+        $c = $getFirstLetter($words[2]);
+        return $a . $b . $c;
+    }
+
+    if (count($words) === 2) {
+        $a = $getFirstLetter($words[0]);
+        $b = $getFirstLetter($words[1]);
+        return $a . $b . 'A';
+    }
+
+    // 1 word (or empty)
+    $firstWord = $words[0] ?? 'A';
+    $a = $getFirstLetter($firstWord);
+    return $a . 'AA';
+}
+
+/**
+ * Increments a 3-letter A-Z code like base-26:
+ * AAA -> AAB -> ... -> AAZ -> ABA -> ... -> ZZZ -> AAA
+ */
+private function incrementAlpha(string $alpha): string
+{
+    $alpha = strtoupper($alpha);
+
+    $chars = str_split($alpha);
+    for ($i = 2; $i >= 0; $i--) {
+        if ($chars[$i] < 'Z') {
+            $chars[$i] = chr(ord($chars[$i]) + 1);
+            return implode('', $chars);
+        }
+        $chars[$i] = 'A'; // carry
+    }
+
+    // overflow ZZZ -> AAA (extreme case)
+    return 'AAA';
+}
+
+private function clientCodeExists(string $code): bool
+{
+    $stmt = $this->conn->prepare("SELECT 1 FROM clients WHERE client_code = ? LIMIT 1");
+    $stmt->bind_param("s", $code);
+    $stmt->execute();
+    $res = $stmt->get_result();
+    return $res && $res->num_rows > 0;
+}
 
     // Get a single client by ID
     public function getById($id) {
